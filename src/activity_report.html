@@ -1,0 +1,418 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Azure Application Insights - Activity Duration Report</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 { font-size: 2em; margin-bottom: 10px; }
+        .header p { font-size: 1.1em; opacity: 0.9; }
+        .info-section {
+            padding: 20px 30px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+        }
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+        }
+        .info-item { display: flex; align-items: center; gap: 10px; }
+        .info-label { font-weight: 600; color: #495057; }
+        .info-value { color: #6c757d; font-family: 'Courier New', monospace; font-size: 0.9em; }
+        .table-container { padding: 30px; overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; background: white; font-size: 0.9em; }
+        thead { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+        th {
+            padding: 12px 10px;
+            text-align: left;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.8em;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+        }
+        td { padding: 12px 10px; border-bottom: 1px solid #e9ecef; }
+        tr:hover { background: #f8f9fa; }
+        .activity-name {
+            font-weight: 600;
+            color: #2c3e50;
+            font-family: 'Courier New', monospace;
+            font-size: 0.95em;
+        }
+        .duration { font-weight: 700; font-size: 1.05em; }
+        .highlight-critical {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+            color: white;
+        }
+        .highlight-critical:hover { background: linear-gradient(135deg, #ff5252 0%, #f44336 100%); }
+        .highlight-critical .duration,
+        .highlight-critical .activity-name { color: #fff; }
+        .highlight-warning { background: linear-gradient(135deg, #ffd93d 0%, #ffb800 100%); }
+        .highlight-warning:hover { background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%); }
+        .timestamp {
+            font-family: 'Courier New', monospace;
+            color: #6c757d;
+            font-size: 0.85em;
+            white-space: nowrap;
+        }
+        .not-found { color: #dc3545; font-style: italic; font-size: 0.85em; }
+        .rank { font-weight: 700; color: #667eea; font-size: 1.05em; }
+        .status-badge {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 15px;
+            font-weight: 600;
+            font-size: 0.75em;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+        }
+        .status-completed { background: #d4edda; color: #155724; }
+        .status-failed { background: #f8d7da; color: #721c24; }
+        .status-inprogress { background: #fff3cd; color: #856404; }
+        .status-partiallycompleted { background: #d1ecf1; color: #0c5460; }
+        .status-waiting { background: #e2e3e5; color: #383d41; }
+        .status-notfound { background: #f8d7da; color: #721c24; }
+        .stats-section {
+            padding: 20px 30px;
+            background: #f8f9fa;
+            border-top: 1px solid #e9ecef;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        .stat-value { font-size: 2em; font-weight: 700; color: #667eea; margin-bottom: 5px; }
+        .stat-label {
+            color: #6c757d;
+            font-size: 0.85em;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        @media (max-width: 1200px) {
+            body { padding: 10px; }
+            .header h1 { font-size: 1.5em; }
+            th, td { padding: 8px 6px; font-size: 0.8em; }
+            table { font-size: 0.8em; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 Activity Duration Analysis Report</h1>
+            <p>Azure Application Insights Investigation</p>
+        </div>
+        <div class="info-section">
+            <div class="info-grid">
+                <div class="info-item">
+                    <span class="info-label">ConversationID:</span>
+                    <span class="info-value">dae2ebb8-e284-4cc1-8c46-77bd0ab90031</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Cloud Role:</span>
+                    <span class="info-value">async-workflow-function</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Report Generated:</span>
+                    <span class="info-value" id="reportTime"></span>
+                </div>
+            </div>
+        </div>
+        <div class="stats-section">
+            <div class="stat-card">
+                <div class="stat-value">20</div>
+                <div class="stat-label">Total Activities</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">121.5s</div>
+                <div class="stat-label">Longest Activity</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">185.2s</div>
+                <div class="stat-label">Total Duration</div>
+            </div>
+        </div>
+        <div class="table-container">
+            <table id="activityTable">
+                <thead>
+                    <tr>
+                        <th>Rank</th>
+                        <th>Activity Name</th>
+                        <th>Start Time</th>
+                        <th>End Time</th>
+                        <th>Duration</th>
+                        <th>Status</th>
+                        <th>In-Progress At</th>
+                        <th>Completed At</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody"></tbody>
+            </table>
+        </div>
+    </div>
+    <script>
+        const activities = [
+    {
+        "ActivityName": "Rollforward-Analytics-Poll",
+        "StartTime": "2026-09-20T15:11:50.223Z",
+        "EndTime": "2026-09-20T15:13:51.699Z",
+        "Duration": 121476.03,
+        "Status": "Completed",
+        "InProgressTime": "2026-09-20T15:11:50.279Z",
+        "CompletedTime": "2026-09-20T15:13:51.698Z"
+    },
+    {
+        "ActivityName": "Rollforward-MappingAndCdm",
+        "StartTime": "2026-09-20T15:14:20.289Z",
+        "EndTime": "2026-09-20T15:14:33.833Z",
+        "Duration": 13543.58,
+        "Status": "Completed",
+        "InProgressTime": "2026-09-20T15:14:20.391Z",
+        "CompletedTime": "2026-09-20T15:14:33.833Z"
+    },
+    {
+        "ActivityName": "Rollforward-Analytics-Initiate",
+        "StartTime": "2026-09-20T15:11:40.324Z",
+        "EndTime": "2026-09-20T15:11:49.005Z",
+        "Duration": 8680.35,
+        "Status": "Completed",
+        "InProgressTime": "2026-09-20T15:11:41.231Z",
+        "CompletedTime": "2026-09-20T15:11:49.005Z"
+    },
+    {
+        "ActivityName": "Rollforward-DbAccess-Workspace",
+        "StartTime": "2026-09-20T15:11:40.330Z",
+        "EndTime": "2026-09-20T15:11:46.370Z",
+        "Duration": 6039.66,
+        "Status": "Waiting",
+        "InProgressTime": "2026-09-20T15:11:41.231Z",
+        "CompletedTime": "Not Found"
+    },
+    {
+        "ActivityName": "Rollforward-CopyUsers",
+        "StartTime": "2026-09-20T15:11:30.156Z",
+        "EndTime": "2026-09-20T15:11:35.480Z",
+        "Duration": 5324.86,
+        "Status": "Completed",
+        "InProgressTime": "2026-09-20T15:11:30.216Z",
+        "CompletedTime": "2026-09-20T15:11:35.480Z"
+    },
+    {
+        "ActivityName": "Create-Engagement-Folder",
+        "StartTime": "2026-09-20T15:11:10.197Z",
+        "EndTime": "2026-09-20T15:11:15.475Z",
+        "Duration": 5277.83,
+        "Status": "Completed",
+        "InProgressTime": "2026-09-20T15:11:11.043Z",
+        "CompletedTime": "2026-09-20T15:11:15.475Z"
+    },
+    {
+        "ActivityName": "Create-Engagement-HiveDb",
+        "StartTime": "2026-09-20T15:11:20.216Z",
+        "EndTime": "2026-09-20T15:11:25.071Z",
+        "Duration": 4855.04,
+        "Status": "Completed",
+        "InProgressTime": "2026-09-20T15:11:20.268Z",
+        "CompletedTime": "2026-09-20T15:11:25.071Z"
+    },
+    {
+        "ActivityName": "Rollforward-Wrap-Job",
+        "StartTime": "2026-09-20T23:12:00.186Z",
+        "EndTime": "2026-09-20T23:12:04.291Z",
+        "Duration": 4104.75,
+        "Status": "PartiallyCompleted",
+        "InProgressTime": "2026-09-20T23:12:00.244Z",
+        "CompletedTime": "Not Found"
+    },
+    {
+        "ActivityName": "Rollforward-CopyFiles",
+        "StartTime": "2026-09-20T15:11:41.231Z",
+        "EndTime": "2026-09-20T15:11:44.421Z",
+        "Duration": 3190.69,
+        "Status": "Waiting",
+        "InProgressTime": "2026-09-20T15:11:41.319Z",
+        "CompletedTime": "Not Found"
+    },
+    {
+        "ActivityName": "Rollforward-Workpapers",
+        "StartTime": "2026-09-20T15:11:40.355Z",
+        "EndTime": "2026-09-20T15:11:42.100Z",
+        "Duration": 1744.63,
+        "Status": "Waiting",
+        "InProgressTime": "2026-09-20T15:11:41.231Z",
+        "CompletedTime": "Not Found"
+    },
+    {
+        "ActivityName": "Rollforward-Calendars",
+        "StartTime": "2026-09-20T15:11:40.207Z",
+        "EndTime": "2026-09-20T15:11:41.727Z",
+        "Duration": 1520.69,
+        "Status": "Completed",
+        "InProgressTime": "2026-09-20T15:11:40.267Z",
+        "CompletedTime": "2026-09-20T15:11:41.727Z"
+    },
+    {
+        "ActivityName": "Rollforward-DataRequest",
+        "StartTime": "2026-09-20T15:11:40.210Z",
+        "EndTime": "2026-09-20T15:11:41.578Z",
+        "Duration": 1368.06,
+        "Status": "Completed",
+        "InProgressTime": "2026-09-20T15:11:41.231Z",
+        "CompletedTime": "2026-09-20T15:11:41.578Z"
+    },
+    {
+        "ActivityName": "Create-Engagement-Recertification",
+        "StartTime": "2026-09-20T15:11:10.200Z",
+        "EndTime": "2026-09-20T15:11:11.505Z",
+        "Duration": 1305.04,
+        "Status": "Completed",
+        "InProgressTime": "2026-09-20T15:11:10.259Z",
+        "CompletedTime": "2026-09-20T15:11:11.505Z"
+    },
+    {
+        "ActivityName": "Create-Engagement-DataBricksFolder",
+        "StartTime": "2026-09-20T15:11:10.325Z",
+        "EndTime": "2026-09-20T15:11:11.595Z",
+        "Duration": 1270.43,
+        "Status": "Completed",
+        "InProgressTime": "2026-09-20T15:11:11.043Z",
+        "CompletedTime": "2026-09-20T15:11:11.595Z"
+    },
+    {
+        "ActivityName": "Rollforward-EntitiesAndEntityGroups",
+        "StartTime": "2026-09-20T15:11:40.271Z",
+        "EndTime": "2026-09-20T15:11:41.530Z",
+        "Duration": 1259.12,
+        "Status": "Completed",
+        "InProgressTime": "2026-09-20T15:11:40.325Z",
+        "CompletedTime": "2026-09-20T15:11:41.530Z"
+    },
+    {
+        "ActivityName": "Create-Engagement-ADGroup",
+        "StartTime": "2026-09-20T15:11:10.322Z",
+        "EndTime": "2026-09-20T15:11:11.375Z",
+        "Duration": 1053.17,
+        "Status": "Completed",
+        "InProgressTime": "2026-09-20T15:11:11.043Z",
+        "CompletedTime": "2026-09-20T15:11:11.375Z"
+    },
+    {
+        "ActivityName": "Create-Engagement-PBIWorkspace",
+        "StartTime": "2026-09-20T15:11:10.334Z",
+        "EndTime": "2026-09-20T15:11:11.105Z",
+        "Duration": 771.49,
+        "Status": "Completed",
+        "InProgressTime": "2026-09-20T15:11:11.043Z",
+        "CompletedTime": "2026-09-20T15:11:11.105Z"
+    },
+    {
+        "ActivityName": "Rollforward-DataSourceSubscription",
+        "StartTime": "2026-09-20T15:11:30.155Z",
+        "EndTime": "2026-09-20T15:11:30.416Z",
+        "Duration": 260.32,
+        "Status": "Completed",
+        "InProgressTime": "2026-09-20T15:11:30.211Z",
+        "CompletedTime": "2026-09-20T15:11:30.416Z"
+    },
+    {
+        "ActivityName": "Rollforward-Generate-Engagement-Output",
+        "StartTime": "2026-09-20T15:11:00.162Z",
+        "EndTime": "2026-09-20T15:11:00.366Z",
+        "Duration": 204.74,
+        "Status": "Completed",
+        "InProgressTime": "2026-09-20T15:11:00.221Z",
+        "CompletedTime": "2026-09-20T15:11:00.366Z"
+    },
+    {
+        "ActivityName": "Start-Job",
+        "StartTime": "2026-09-20T15:10:50.162Z",
+        "EndTime": "2026-09-20T15:10:50.328Z",
+        "Duration": 166.37,
+        "Status": "Completed",
+        "InProgressTime": "2026-09-20T15:10:50.215Z",
+        "CompletedTime": "2026-09-20T15:10:50.328Z"
+    }
+];
+        document.getElementById('reportTime').textContent = new Date().toLocaleString();
+        function formatDuration(ms) {
+            if (ms >= 60000) {
+                const minutes = Math.floor(ms / 60000);
+                const seconds = ((ms % 60000) / 1000).toFixed(2);
+                return `${minutes}m ${seconds}s`;
+            } else if (ms >= 1000) {
+                return `${(ms / 1000).toFixed(2)}s`;
+            } else {
+                return `${Math.round(ms)}ms`;
+            }
+        }
+        function formatTimestamp(dateStr) {
+            if (dateStr === "Not Found") {
+                return '<span class="not-found">Not Found</span>';
+            }
+            const date = new Date(dateStr);
+            return date.toISOString().replace('T', ' ').substring(0, 19);
+        }
+        function getStatusClass(status) {
+            const statusLower = status.toLowerCase().replace(/\s+/g, '');
+            if (statusLower === 'completed') return 'status-completed';
+            if (statusLower === 'failed') return 'status-failed';
+            if (statusLower === 'inprogress') return 'status-inprogress';
+            if (statusLower === 'partiallycompleted') return 'status-partiallycompleted';
+            if (statusLower === 'waiting') return 'status-waiting';
+            if (statusLower === 'notfound') return 'status-notfound';
+            return 'status-inprogress';
+        }
+        const tbody = document.getElementById('tableBody');
+        activities.forEach((activity, index) => {
+            const row = document.createElement('tr');
+            if (index === 0) {
+                row.classList.add('highlight-critical');
+            } else if (index === 1 || index === 2) {
+                row.classList.add('highlight-warning');
+            }
+            const status = activity.Status || 'Not Found';
+            const statusClass = getStatusClass(status);
+            row.innerHTML = `
+                <td><span class="rank">#${index + 1}</span></td>
+                <td><span class="activity-name">${activity.ActivityName}</span></td>
+                <td><span class="timestamp">${formatTimestamp(activity.StartTime)}</span></td>
+                <td><span class="timestamp">${formatTimestamp(activity.EndTime)}</span></td>
+                <td><span class="duration">${formatDuration(activity.Duration)}</span></td>
+                <td><span class="status-badge ${statusClass}">${status}</span></td>
+                <td><span class="timestamp">${formatTimestamp(activity.InProgressTime)}</span></td>
+                <td><span class="timestamp">${formatTimestamp(activity.CompletedTime)}</span></td>
+            `;
+            tbody.appendChild(row);
+        });
+    </script>
+</body>
+</html>
